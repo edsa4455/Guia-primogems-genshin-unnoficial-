@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Interativo de Primogemas - Genshin Impact</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Amber Stone -->
+    <!-- Application Structure Plan: A single-page application designed for intuitive exploration. The structure is not a mirror of the report but a functional re-interpretation based on user tasks. It starts with a summary dashboard, followed by a filterable grid of cards representing each Primogem source. This allows users to view all sources or narrow down by "gameplay area" (Daily, Exploration, Quests, End-Game), which also aligns with increasing difficulty. An interactive chart visualizes recurring income, and collapsible sections provide targeted strategies. This task-oriented design (filtering, visualizing, strategizing) was chosen to make the dense information from the report highly accessible and actionable for players at all levels. -->
+    <!-- Visualization & Content Choices: Report Info: All Primogem sources -> Goal: Inform, Compare, Organize -> Viz/Presentation: A grid of cards with icons, amounts, and tags (difficulty, type). Interaction: Users can filter cards by gameplay category buttons. Justification: This is more interactive and less overwhelming than a long text document. Library/Method: Vanilla JS for filtering logic. Report Info: Recurring monthly income -> Goal: Visualize Proportions -> Viz/Presentation: Doughnut Chart. Interaction: Tooltips on hover. Justification: A doughnut chart clearly shows the contribution of each recurring source to the monthly total. Library/Method: Chart.js. Report Info: Player-specific strategies -> Goal: Organize & Condense -> Viz/Presentation: Collapsible accordion sections. Interaction: Click to expand/collapse. Justification: Hides detailed text until needed, keeping the UI clean. Library/Method: Vanilla JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .nav-btn.active {
+            background-color: #4338ca;
+            color: #ffffff;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-indigo-900 mb-2">Guia Interativo de Primogemas</h1>
+            <p class="text-lg text-stone-600 max-w-3xl mx-auto">Uma ferramenta para explorar todas as formas de ganhar Primogemas em Genshin Impact. Navegue pelas fontes, filtre por categoria e planeie a sua jornada em Teyvat.</p>
+        </header>
+
+        <main>
+            <section id="dashboard" class="mb-12 p-6 bg-white rounded-2xl shadow-sm border border-stone-200">
+                <h2 class="text-2xl font-bold text-center mb-4 text-indigo-800">Visão Geral da Renda F2P</h2>
+                <p class="text-center text-stone-600 mb-6 max-w-2xl mx-auto">
+                    A economia de Genshin Impact transita de uma "inundação" inicial de Primogemas (exploração, missões) para um "gotejamento" recorrente (diárias, eventos). Este gráfico visualiza o potencial de renda mensal recorrente para um jogador de fim de jogo, ajudando no planeamento a longo prazo.
+                </p>
+                <div class="chart-container">
+                    <canvas id="monthlyIncomeChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="sources">
+                <h2 class="text-2xl font-bold text-center mb-4 text-indigo-800">Fontes de Primogemas</h2>
+                <p class="text-center text-stone-600 mb-8 max-w-2xl mx-auto">
+                    Aqui estão todas as formas de obter Primogemas, organizadas da mais fácil para a mais difícil. Use os filtros para explorar por "área de jogo", que representa diferentes tipos de atividades em Teyvat.
+                </p>
+                <nav id="filter-nav" class="flex flex-wrap justify-center gap-2 mb-8">
+                </nav>
+
+                <div id="primogem-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                </div>
+            </section>
+
+            <section id="strategy" class="mt-16">
+                <h2 class="text-2xl font-bold text-center mb-4 text-indigo-800">Estratégias por Jogador</h2>
+                 <p class="text-center text-stone-600 mb-8 max-w-2xl mx-auto">
+                    A sua prioridade para farmar Primogemas muda drasticamente à medida que avança no jogo. Clique numa categoria abaixo para ver recomendações específicas para o seu Nível de Aventura e otimizar a sua estratégia de poupança.
+                </p>
+                <div id="strategy-accordions" class="space-y-4 max-w-4xl mx-auto">
+                </div>
+            </section>
+            
+            <section id="paid-options" class="mt-16">
+                 <h2 class="text-2xl font-bold text-center mb-4 text-indigo-800">Opções Pagas de Melhor Valor</h2>
+                 <p class="text-center text-stone-600 mb-8 max-w-2xl mx-auto">
+                    Para jogadores que consideram um gasto moderado, estas são as duas opções com a melhor relação custo-benefício para acelerar a aquisição de Primogemas.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                        <h3 class="font-bold text-lg text-indigo-700">🌙 Bênção da Lua Nova</h3>
+                        <p class="text-stone-600 mt-2">Oferece 300 Cristais Gênesis imediatamente e 90 Primogemas por dia durante 30 dias. Totaliza <strong>3,000 Primogemas</strong>, sendo a opção de maior valor no jogo.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                        <h3 class="font-bold text-lg text-indigo-700">📜 Hino Gnóstico (Passe de Batalha)</h3>
+                        <p class="text-stone-600 mt-2">Concede <strong>680 Primogemas</strong> e <strong>4 Destinos Entrelaçados</strong> (equivalente a 640 gemas), além de uma vasta quantidade de recursos que poupam Resina.</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        const primogemData = [
+            {
+                title: 'Check-in Diário HoYoLAB',
+                category: 'diario',
+                difficulty: 'Muito Baixo',
+                type: 'Renovável',
+                amount: '60 / mês',
+                icon: '📱',
+                description: 'Login diário no website ou app HoYoLAB para recompensas mensais.'
+            },
+            {
+                title: 'Códigos de Resgate',
+                category: 'diario',
+                difficulty: 'Muito Baixo',
+                type: 'Recorrente',
+                amount: '~300+ / versão',
+                icon: '🎁',
+                description: 'Códigos promocionais lançados durante transmissões ao vivo e eventos.'
+            },
+            {
+                title: 'Manutenção e Erros',
+                category: 'diario',
+                difficulty: 'Muito Baixo',
+                type: 'Recorrente',
+                amount: '600+ / versão',
+                icon: '🔧',
+                description: 'Compensação enviada por e-mail após cada atualização e correção de bugs.'
+            },
+            {
+                title: 'Testes de Personagens',
+                category: 'diario',
+                difficulty: 'Baixo',
+                type: 'Recorrente',
+                amount: '40-80 / versão',
+                icon: '⚔️',
+                description: 'Complete o teste de combate para os personagens de 5 estrelas em destaque.'
+            },
+            {
+                title: 'Comissões Diárias',
+                category: 'diario',
+                difficulty: 'Baixo',
+                type: 'Renovável',
+                amount: '60 / dia',
+                icon: '📅',
+                description: 'Quatro missões curtas que reiniciam diariamente. A fonte mais consistente de gemas.'
+            },
+            {
+                title: 'Eventos Web',
+                category: 'diario',
+                difficulty: 'Baixo',
+                type: 'Recorrente',
+                amount: '80-200 / versão',
+                icon: '🌐',
+                description: 'Minijogos de tempo limitado baseados em navegador com recompensas fáceis.'
+            },
+            {
+                title: 'Tutoriais',
+                category: 'exploracao',
+                difficulty: 'Baixo',
+                type: 'Finito',
+                amount: '1 / cada',
+                icon: '💡',
+                description: 'Pequenas recompensas por visualizar tutoriais de novas mecânicas de jogo.'
+            },
+            {
+                title: 'Manual do Aventureiro',
+                category: 'exploracao',
+                difficulty: 'Baixo',
+                type: 'Finito',
+                amount: '50-150 / capítulo',
+                icon: '📖',
+                description: 'Recompensas por completar os objetivos que guiam os novos jogadores.'
+            },
+            {
+                title: 'Pontos de Teleporte e Estátuas',
+                category: 'exploracao',
+                difficulty: 'Baixo',
+                type: 'Finito',
+                amount: '5 / cada',
+                icon: '🗺️',
+                description: 'Uma recompensa única por desbloquear cada ponto de viagem rápida no mapa.'
+            },
+            {
+                title: 'Baús',
+                category: 'exploracao',
+                difficulty: 'Baixo-Médio',
+                type: 'Finito',
+                amount: '0-40 / baú',
+                icon: '💎',
+                description: 'Encontrados por todo o mundo. Regiões mais novas (Sumeru, Fontaine) dão mais gemas.'
+            },
+            {
+                title: 'Oferendas às Estátuas dos Sete',
+                category: 'exploracao',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: '10-60 / nível',
+                icon: '🙏',
+                description: 'Colete Oculi regionais e ofereça-os às estátuas para subir de nível e ganhar recompensas.'
+            },
+            {
+                title: 'Santuários das Profundezas',
+                category: 'exploracao',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: '40 / santuário',
+                icon: '🏛️',
+                description: 'Abra santuários trancados com chaves ganhas em missões e domínios.'
+            },
+            {
+                title: 'Sistemas de Oferenda Regionais',
+                category: 'exploracao',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: 'Destinos e Gemas',
+                icon: '🌳',
+                description: 'Sistemas como a Árvore do Sabugueiro e a Sakura Sagrada recompensam a exploração.'
+            },
+            {
+                title: 'Missões de Mundo',
+                category: 'missoes',
+                difficulty: 'Variável',
+                type: 'Finito',
+                amount: '20-200+ / missão',
+                icon: '📜',
+                description: 'Missões secundárias encontradas no mundo. Algumas cadeias de missões são muito longas e recompensadoras.'
+            },
+            {
+                title: 'Missões Lendárias',
+                category: 'missoes',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: '60 / missão',
+                icon: '✨',
+                description: 'Missões de história focadas em personagens de 5 estrelas.'
+            },
+            {
+                title: 'Eventos de Encontro',
+                category: 'missoes',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: '90 / encontro',
+                icon: '💖',
+                description: 'Missões de "escolha sua aventura" para personagens de 4 estrelas com múltiplos finais e conquistas.'
+            },
+            {
+                title: 'Missões do Arconte',
+                category: 'missoes',
+                difficulty: 'Médio-Alto',
+                type: 'Finito',
+                amount: 'Variável (muito alto)',
+                icon: '👑',
+                description: 'A história principal do jogo, uma fonte massiva de gemas de única vez.'
+            },
+            {
+                title: 'Bule de Relachá',
+                category: 'fim-de-jogo',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: 'Milhares no total',
+                icon: '🍵',
+                description: 'Ganhe gemas subindo o Nível de Confiança e criando conjuntos de mobília para personagens.'
+            },
+            {
+                title: 'Chamado Sagrado dos Sete (TCG)',
+                category: 'fim-de-jogo',
+                difficulty: 'Médio',
+                type: 'Finito',
+                amount: '600+',
+                icon: '🃏',
+                description: 'Suba o seu Nível de Jogador no TCG e complete os desafios do manual.'
+            },
+            {
+                title: 'Conquistas',
+                category: 'fim-de-jogo',
+                difficulty: 'Variável',
+                type: 'Finito',
+                amount: '5-20 / cada',
+                icon: '🏆',
+                description: 'Uma enorme fonte de gemas. Existem mais de 1500 conquistas para desbloquear.'
+            },
+            {
+                title: 'Eventos Principais da Versão',
+                category: 'fim-de-jogo',
+                difficulty: 'Médio-Alto',
+                type: 'Recorrente',
+                amount: '~1000 / evento',
+                icon: '🎉',
+                description: 'O grande evento de cada versão, oferecendo uma grande quantidade de gemas e outros prémios.'
+            },
+            {
+                title: 'Abismo Espiral (Pisos 1-8)',
+                category: 'fim-de-jogo',
+                difficulty: 'Alto',
+                type: 'Finito',
+                amount: '2400 no total',
+                icon: '🌀',
+                description: 'Recompensa de única vez por completar os pisos iniciais do Abismo.'
+            },
+            {
+                title: 'Abismo Espiral (Pisos 9-12)',
+                category: 'fim-de-jogo',
+                difficulty: 'Muito Alto',
+                type: 'Renovável',
+                amount: 'Até 600 / 2 semanas',
+                icon: '💫',
+                description: 'A principal fonte renovável de gemas para jogadores de fim de jogo. Reinicia duas vezes por mês.'
+            },
+            {
+                title: 'Teatro das Realidades Imaginárias',
+                category: 'fim-de-jogo',
+                difficulty: 'Muito Alto',
+                type: 'Renovável',
+                amount: '~1320 / mês',
+                icon: '🎭',
+                description: 'Novo modo de fim de jogo com recompensas mensais significativas.'
+            }
+        ];
+
+        const strategyData = [
+            {
+                title: 'Novo Jogador (AR 1-35)',
+                content: 'A sua prioridade é a "inundação" de Primogemas. Foque-se em completar as Missões do Arconte para avançar na história e desbloquear novas áreas. Explore o mapa extensivamente: ative todos os Pontos de Teleporte e Estátuas dos Sete que encontrar. Abra todos os baús pelo caminho. Complete os capítulos do Manual do Aventureiro. Esta fase construirá rapidamente a sua base de personagens e recursos.'
+            },
+            {
+                title: 'Jogador Intermediário (AR 35-55)',
+                content: 'A "inundação" começa a diminuir. Agora, o foco deve ser limpar o conteúdo finito restante. Conclua as grandes cadeias de Missões de Mundo (como Aranyaka em Sumeru), complete todos os Eventos de Encontro e tente limpar os pisos 1 a 8 do Abismo Espiral para a recompensa única de 2400 gemas. Comece a construir duas equipas fortes e sinérgicas para se preparar para os pisos 9-12 do Abismo.'
+            },
+            {
+                title: 'Jogador Veterano (AR 55+)',
+                content: 'O "gotejamento" é a sua principal fonte de renda. A sua rotina deve ser focada em fontes renováveis. A maior prioridade é limpar o Abismo Espiral (Pisos 9-12) e o Teatro das Realidades Imaginárias a cada reinício. As comissões diárias são obrigatórias. Participe em todos os eventos de tempo limitado, pois eles são a sua principal fonte de gemas "bónus". Para projetos de longo prazo, cace conquistas e complete os conjuntos de presentes do Bule de Relachá.'
+            }
+        ];
+
+        const categories = [
+            { id: 'all', name: 'Todos' },
+            { id: 'diario', name: 'Diário & Recorrente' },
+            { id: 'exploracao', name: 'Exploração & Mundo' },
+            { id: 'missoes', name: 'Missões & História' },
+            { id: 'fim-de-jogo', name: 'Fim de Jogo & Desafios' }
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('primogem-grid');
+            const nav = document.getElementById('filter-nav');
+            const accordionsContainer = document.getElementById('strategy-accordions');
+
+            function renderCards(filter = 'all') {
+                grid.innerHTML = '';
+                const filteredData = filter === 'all' ? primogemData : primogemData.filter(item => item.category === filter);
+
+                filteredData.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card bg-white p-5 rounded-xl shadow-sm border border-stone-200 flex flex-col';
+                    card.dataset.category = item.category;
+
+                    card.innerHTML = `
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-3xl">${item.icon}</span>
+                                <span class="text-sm font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full">${item.amount}</span>
+                            </div>
+                            <h3 class="font-bold text-lg mb-1 text-stone-900">${item.title}</h3>
+                            <p class="text-stone-600 text-sm mb-4">${item.description}</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs font-semibold mt-2">
+                            <span class="text-white px-2 py-1 rounded-md ${item.type === 'Renovável' || item.type === 'Recorrente' ? 'bg-green-600' : 'bg-amber-600'}">${item.type}</span>
+                            <span class="text-stone-500">${item.difficulty}</span>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            
+            function renderNav() {
+                categories.forEach(cat => {
+                    const button = document.createElement('button');
+                    button.className = 'nav-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200';
+                    button.textContent = cat.name;
+                    button.dataset.filter = cat.id;
+                    if (cat.id === 'all') {
+                        button.classList.add('active');
+                    }
+                    button.addEventListener('click', () => {
+                        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        renderCards(cat.id);
+                    });
+                    nav.appendChild(button);
+                });
+            }
+
+            function renderAccordions() {
+                strategyData.forEach(item => {
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden';
+                    
+                    const button = document.createElement('button');
+                    button.className = 'w-full p-5 text-left font-bold text-lg text-indigo-800 flex justify-between items-center';
+                    button.innerHTML = `
+                        <span>${item.title}</span>
+                        <span class="transform transition-transform duration-300">▼</span>
+                    `;
+
+                    const content = document.createElement('div');
+                    content.className = 'accordion-content px-5 pb-5 text-stone-600';
+                    content.innerHTML = `<p>${item.content}</p>`;
+
+                    button.addEventListener('click', () => {
+                        const isExpanded = content.style.maxHeight && content.style.maxHeight !== '0px';
+                        document.querySelectorAll('.accordion-content').forEach(el => el.style.maxHeight = '0px');
+                        document.querySelectorAll('.accordion-content').forEach(el => el.previousElementSibling.querySelector('span:last-child').style.transform = 'rotate(0deg)');
+                        
+                        if (!isExpanded) {
+                            content.style.maxHeight = content.scrollHeight + 'px';
+                            button.querySelector('span:last-child').style.transform = 'rotate(180deg)';
+                        }
+                    });
+
+                    accordionItem.appendChild(button);
+                    accordionItem.appendChild(content);
+                    accordionsContainer.appendChild(accordionItem);
+                });
+            }
+
+            function renderChart() {
+                const ctx = document.getElementById('monthlyIncomeChart').getContext('2d');
+                const monthlySources = {
+                    'Comissões Diárias': 60 * 30,
+                    'Abismo Espiral': 600 * 2,
+                    'Eventos': (1000 + 1260) / 1.5,
+                    'Códigos e Check-in': (300 + 60) / 1.5,
+                    'Teatro Imaginário': 1100,
+                };
+
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(monthlySources),
+                        datasets: [{
+                            label: 'Primogemas por Mês',
+                            data: Object.values(monthlySources),
+                            backgroundColor: [
+                                'rgba(79, 70, 229, 0.8)',
+                                'rgba(129, 140, 248, 0.8)',
+                                'rgba(34, 197, 94, 0.8)',
+                                'rgba(245, 158, 11, 0.8)',
+                                'rgba(99, 102, 241, 0.8)'
+                            ],
+                            borderColor: '#f9fafb',
+                            borderWidth: 2,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += Math.round(context.parsed) + ' Primogemas';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
+
+            renderNav();
+            renderCards();
+            renderAccordions();
+            renderChart();
+        });
+    </script>
+</body>
+</html>
